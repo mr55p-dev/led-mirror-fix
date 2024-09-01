@@ -54,7 +54,7 @@ void set_state(bool state[2]) {
   gpio_put(GPIO_OUT_COOL, state[1]);
 }
 
-void irq_handle_state_shift(uint gpio, uint32_t event_mask) {
+void irq_handle_state_shift(uint gpio) {
   absolute_time_t now = get_absolute_time();
   absolute_time_t debounce_window = debounce_last_hit + DEBOUNCE_INTERVAL_US;
   if (debounce_window > now) {
@@ -64,9 +64,14 @@ void irq_handle_state_shift(uint gpio, uint32_t event_mask) {
   if (gpio != GPIO_IN_BUTTON) {
     return;
   }
+
   debounce_last_hit = now;
   lamp_state_next_idx();
   set_state(lamp_states[lamp_state_active_idx]);
+}
+
+void irq_handle_interrupt(uint gpio, uint32_t event_mask) {
+  irq_handle_state_shift(gpio);
 }
 
 int main() {
@@ -77,9 +82,8 @@ int main() {
   set_state(lamp_states[lamp_state_active_idx]);
 
   gpio_set_irq_enabled_with_callback(GPIO_IN_BUTTON, GPIO_IRQ_EDGE_RISE, true,
-                                     &irq_handle_state_shift);
-
+                                     &irq_handle_interrupt);
   while (true) {
-    sleep_ms(UINT32_MAX);
+    __asm("wfi");
   }
 }
